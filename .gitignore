@@ -4,6 +4,7 @@
 .terraform/
 .terraform.lock.hcl
 
+
 # Logs
 *.log
 
@@ -18,3 +19,14 @@ Thumbs.db
 
 # macOS
 .DS_Store
+
+# Terraform local variables
+*.tfvars
+*.tfvars.json
+
+# Terraform generated files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
