@@ -181,3 +181,117 @@ The IAM resources can remain in the AWS account when the compute infrastructure 
 The Jenkins server uses an EC2 IAM role instead of stored AWS credentials.
 
 The role is attached through an instance profile and currently grants only Systems Manager permissions. Additional permissions will be added gradually as Jenkins integrates with ECR and Kubernetes.
+
+
+## Amazon ECR Permission
+
+The Jenkins IAM role also has a custom policy named:
+
+```text
+enterprise-devops-platform-jenkins-ecr-policy
+```
+
+This policy allows Jenkins to authenticate with Amazon ECR and push container images to:
+
+```text
+enterprise-devops-platform/pet-adoption
+```
+
+The policy grants repository actions including:
+
+- Checking image-layer availability
+- Starting and completing layer uploads
+- Uploading image layers
+- Publishing image manifests
+- Listing and describing images
+- Downloading image layers when required
+
+The permission is restricted to the Pet Adoption repository rather than granting access to every ECR repository in the AWS account.
+
+---
+
+## ECR Authentication
+
+The action:
+
+```text
+ecr:GetAuthorizationToken
+```
+
+uses:
+
+```text
+Resource = "*"
+```
+
+This is required because the ECR authorisation token is issued at the registry level rather than for one individual repository.
+
+Repository-specific push and inspection permissions remain restricted to the Pet Adoption repository ARN.
+
+---
+
+## Updated Least-Privilege Design
+
+The Jenkins role currently has:
+
+- AWS Systems Manager access
+- Access to push and inspect images in the Pet Adoption ECR repository
+
+It does not have permission to:
+
+- Create or delete ECR repositories
+- Manage unrelated ECR repositories
+- Create AWS infrastructure
+- Administer IAM
+- Manage the Kubernetes cluster
+
+Additional permissions will be introduced only when the related pipeline stage is implemented.
+
+---
+
+## Updated Permission Flow
+
+```text
+Jenkins EC2 Instance
+        |
+        v
+Jenkins Instance Profile
+        |
+        v
+Jenkins IAM Role
+        |
+        +--> AmazonSSMManagedInstanceCore
+        |
+        +--> Jenkins ECR Custom Policy
+                    |
+                    v
+Enterprise DevOps Platform
+Pet Adoption ECR Repository
+```
+
+---
+
+## ECR Verification
+
+Verify all policies attached to Jenkins:
+
+```bash
+aws iam list-attached-role-policies \
+  --role-name enterprise-devops-platform-jenkins-role \
+  --profile personal-devops
+```
+
+Expected policies:
+
+```text
+AmazonSSMManagedInstanceCore
+enterprise-devops-platform-jenkins-ecr-policy
+```
+
+---
+
+## Interview Question: Why not use AmazonEC2ContainerRegistryFullAccess?
+
+The AWS-managed full-access policy would give Jenkins much broader ECR permissions than it currently requires.
+
+A custom policy was created to limit Jenkins to the actions needed to authenticate, upload, inspect and retrieve images from the Pet Adoption repository. This follows the principle of least privilege and reduces the impact of a compromised Jenkins server.
