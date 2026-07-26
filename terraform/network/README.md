@@ -2,204 +2,276 @@
 
 ## Overview
 
-This module provisions the foundational AWS networking infrastructure for the Enterprise DevOps Platform.
+The Network module provisions the foundational AWS networking infrastructure for the Enterprise DevOps Platform.
 
-The network is designed using AWS networking best practices by separating internet-facing resources from internal workloads. It provides a secure, scalable and highly available environment that will host the Kubernetes cluster, Jenkins, monitoring stack and the Pet Adoption application.
+It establishes a secure, highly available, and scalable network that will host the Kubernetes cluster, Jenkins, monitoring services, and the Pet Adoption application.
 
-This module stores its Terraform state remotely in Amazon S3 using the backend created during the bootstrap phase.
+This module follows AWS networking best practices by separating internet-facing resources from internal workloads while using a remote Terraform backend stored in Amazon S3.
 
 ---
 
 # Architecture
 
 ```
-                              Internet
-                                  │
-                          Internet Gateway
-                                  │
-                  ┌───────────────┴───────────────┐
-                  │                               │
-          Public Subnet A                 Public Subnet B
-                  │                               │
-         Load Balancer / Jenkins        Future Public Services
-                  │
-          ┌───────┴────────┐
-          │                │
-  Private Subnet A   Private Subnet B
-          │                │
- Kubernetes Nodes     Kubernetes Nodes
-          │                │
-      Pet Adoption Application
+                                Internet
+                                    │
+                            Internet Gateway
+                                    │
+                         Public Route Table
+                                    │
+             ┌──────────────────────┴──────────────────────┐
+             │                                             │
+      Public Subnet A                              Public Subnet B
+       10.0.1.0/24                                 10.0.2.0/24
+             │                                             │
+             │                                             │
+     NAT Gateway (EIP)                          Future Public Resources
+             │
+      Private Route Table
+             │
+      ┌──────┴──────────────┐
+      │                     │
+Private Subnet A      Private Subnet B
+ 10.0.11.0/24          10.0.12.0/24
+      │                     │
+      └──────────┬──────────┘
+                 │
+        Kubernetes Cluster
+        Pet Adoption Application
 ```
 
 ---
 
 # Purpose
 
-The objective of this module is to build the network foundation on which every other infrastructure component will depend.
+This module creates the AWS networking foundation that every other infrastructure component depends on.
 
-The network provides:
+It provides:
 
-- Isolation
+- Network isolation
 - High Availability
-- Scalability
-- Secure communication
-- Controlled internet access
-
-Every resource created later in this project will be deployed inside this VPC.
+- Secure workload separation
+- Controlled internet connectivity
+- Scalable IP addressing
+- Foundation for Kubernetes
 
 ---
 
 # Resources Created
 
-This module currently provisions:
+## Network
 
-- One Virtual Private Cloud (VPC)
+- One VPC
 - Two Public Subnets
 - Two Private Subnets
 
-Future updates will include:
+## Internet Connectivity
 
-- Internet Gateway
-- Route Tables
-- Route Table Associations
-- NAT Gateway
-- Elastic IP
-- Network ACLs
+- One Internet Gateway
+- One Public Route Table
+- Two Public Route Table Associations
+
+## Private Connectivity
+
+- One Elastic IP
+- One NAT Gateway
+- One Private Route Table
+- Two Private Route Table Associations
 
 ---
 
 # VPC Design
 
-The VPC uses:
+The VPC uses the CIDR block:
 
 ```
 10.0.0.0/16
 ```
 
-This private CIDR block provides 65,536 IP addresses.
+This provides **65,536 IP addresses**, allowing the network to scale without redesign.
 
-Using a `/16` network allows future expansion without redesigning the network.
+DNS Support and DNS Hostnames are enabled to support:
 
-The VPC has:
-
-- DNS Support Enabled
-- DNS Hostnames Enabled
-
-These settings are required for services such as EC2, Kubernetes, load balancers and internal service discovery.
+- EC2
+- Kubernetes
+- Internal service discovery
+- Load Balancers
 
 ---
 
 # Availability Zones
 
-The network spans two Availability Zones:
+The infrastructure spans two Availability Zones:
 
 ```
 eu-west-3a
 eu-west-3b
 ```
 
-Using multiple Availability Zones improves fault tolerance.
+Using multiple Availability Zones improves fault tolerance and availability.
 
-If one Availability Zone experiences an outage, workloads can continue running in the other zone.
-
-This is an example of High Availability (HA).
+If one Availability Zone experiences an outage, workloads can continue running in the other.
 
 ---
 
 # Public Subnets
 
 ```
+Public Subnet A
 10.0.1.0/24
+
+Public Subnet B
 10.0.2.0/24
 ```
 
-Public subnets automatically assign public IP addresses to launched instances.
+Characteristics:
 
-These subnets will host resources that must communicate directly with the internet, including:
+- Automatically assign Public IP addresses
+- Connected to the Internet Gateway
+- Associated with the Public Route Table
+
+Future resources:
 
 - Application Load Balancer
 - NAT Gateway
-- Jenkins (during this project)
-
-Public subnets alone do not provide internet access.
-
-They also require:
-
-- Internet Gateway
-- Route Table
-- Route Table Association
+- Jenkins Server
 
 ---
 
 # Private Subnets
 
 ```
+Private Subnet A
 10.0.11.0/24
+
+Private Subnet B
 10.0.12.0/24
 ```
 
-Private subnets do not assign public IP addresses.
+Characteristics:
 
-These subnets are intended for internal workloads such as:
+- No automatic Public IP assignment
+- Associated with the Private Route Table
+- Internet access only through the NAT Gateway
 
-- Kubernetes Worker Nodes
-- Application Pods
+Future resources:
+
+- Kubernetes Control Plane
+- Worker Nodes
+- Pet Adoption Pods
 - Databases
 - Internal Services
 
-Resources inside these subnets cannot be reached directly from the internet.
+---
+
+# Internet Gateway
+
+The Internet Gateway is attached to the VPC.
+
+It provides internet connectivity for resources located in public subnets.
+
+The Internet Gateway is attached to the VPC rather than individual subnets because it serves as the single internet entry and exit point for the entire virtual network.
+
+A subnet becomes public only when:
+
+- An Internet Gateway is attached to the VPC
+- A Route Table contains a default route to the Internet Gateway
+- The subnet is associated with that Route Table
+- The resource has a Public IP address
 
 ---
 
-# Why Separate Public and Private Subnets?
+# NAT Gateway
 
-Separating workloads improves security.
+A single NAT Gateway is deployed in Public Subnet A.
 
-Internet-facing resources remain isolated from internal infrastructure.
+It uses an Elastic IP address.
 
-If a public-facing server is compromised, private workloads remain protected behind additional networking controls.
+Purpose:
 
-This follows the principle of least exposure.
+Allow resources inside private subnets to initiate outbound internet connections without exposing them directly to the internet.
+
+Examples include:
+
+- Downloading operating system updates
+- Pulling container images
+- Installing software packages
+- Communicating with external APIs
+
+Inbound internet connections to private resources remain blocked.
+
+---
+
+# Route Tables
+
+## Public Route Table
+
+Default Route:
+
+```
+0.0.0.0/0 → Internet Gateway
+```
+
+Associated with:
+
+- Public Subnet A
+- Public Subnet B
+
+---
+
+## Private Route Table
+
+Default Route:
+
+```
+0.0.0.0/0 → NAT Gateway
+```
+
+Associated with:
+
+- Private Subnet A
+- Private Subnet B
 
 ---
 
 # High Availability
 
-Resources are distributed across multiple Availability Zones.
+The network is distributed across two Availability Zones.
 
-Benefits include:
+Benefits:
 
-- Better fault tolerance
-- Increased resilience
+- Increased fault tolerance
+- Improved resilience
+- Better production readiness
 - Reduced downtime
-- Improved production reliability
 
-High Availability is a fundamental cloud design principle.
+A production deployment would typically use one NAT Gateway per Availability Zone.
+
+To minimise cost during development, this project uses a single NAT Gateway.
 
 ---
 
 # Remote Terraform State
 
-This module stores its Terraform state in the remote S3 backend created during the backend bootstrap phase.
+Terraform state is stored remotely in Amazon S3.
 
-State location:
+State path:
 
 ```
 network/terraform.tfstate
 ```
 
-Using remote state provides:
+Benefits:
 
 - Centralised state management
-- Better collaboration
-- Encryption
 - Versioning
+- Encryption
+- Team collaboration
 - Protection against local machine failure
 
 ---
 
-# Deployment Steps
+# Deployment
 
 ```bash
 terraform init
@@ -213,56 +285,110 @@ terraform apply
 
 # Verification
 
-Verify the VPC:
+Verify VPC
 
 ```bash
-aws ec2 describe-vpcs \
-  --filters "Name=tag:Name,Values=enterprise-devops-platform-vpc" \
-  --profile personal-devops \
-  --region eu-west-3
+aws ec2 describe-vpcs
 ```
 
-Verify the subnets:
+Verify Subnets
 
 ```bash
-aws ec2 describe-subnets \
-  --filters "Name=vpc-id,Values=<VPC_ID>" \
-  --profile personal-devops \
-  --region eu-west-3
+aws ec2 describe-subnets
+```
+
+Verify Internet Gateway
+
+```bash
+aws ec2 describe-internet-gateways
+```
+
+Verify Route Tables
+
+```bash
+aws ec2 describe-route-tables
+```
+
+Verify NAT Gateway
+
+```bash
+aws ec2 describe-nat-gateways
 ```
 
 ---
 
 # Cost Considerations
 
-The following resources have no significant hourly running cost:
+Minimal cost resources:
 
 - VPC
 - Subnets
-- Route Tables
 - Internet Gateway
+- Route Tables
+- Security Groups
 
-Future resources that will incur charges include:
+Billable resources:
 
 - NAT Gateway
-- Load Balancer
+- Elastic IP (when applicable)
 - EC2 Instances
+- Load Balancer
 - Kubernetes Cluster
 
-These resources will be destroyed when they are no longer required.
+To reduce costs during learning, the NAT Gateway should be deleted after testing and recreated when required.
 
 ---
 
 # Engineering Notes
 
-## What I learned
+## Key Concepts Learned
 
 - A VPC is an isolated virtual network inside AWS.
-- Public subnets automatically assign public IP addresses.
-- Private subnets do not assign public IP addresses.
-- A subnet is not public simply because of its name; it requires an Internet Gateway and an appropriate Route Table.
-- High Availability is achieved by distributing resources across multiple Availability Zones.
-- Terraform remote state allows multiple modules to share a central source of truth.
+- Public and private subnets improve security through workload separation.
+- Public subnets require an Internet Gateway, a Route Table, a Route Table Association and a Public IP.
+- Private subnets use a NAT Gateway for outbound internet access.
+- The Internet Gateway belongs to the VPC, not to an individual subnet.
+- Route Tables determine where network traffic is sent.
+- High Availability is achieved by distributing infrastructure across multiple Availability Zones.
+- Remote Terraform state provides a secure and central source of truth.
+
+---
+
+# Architecture Decisions (ADR)
+
+## ADR-001 – VPC CIDR
+
+**Decision**
+
+Use `10.0.0.0/16`.
+
+**Reason**
+
+Provides sufficient address space for future growth while maintaining a simple addressing scheme.
+
+---
+
+## ADR-002 – Multi-AZ Design
+
+**Decision**
+
+Deploy resources across two Availability Zones.
+
+**Reason**
+
+Improves availability and resilience against Availability Zone failures.
+
+---
+
+## ADR-003 – Single NAT Gateway
+
+**Decision**
+
+Use one NAT Gateway.
+
+**Reason**
+
+A production environment would normally deploy one NAT Gateway per Availability Zone. For this learning project, one NAT Gateway demonstrates the correct architecture while keeping AWS costs low.
 
 ---
 
@@ -270,16 +396,28 @@ These resources will be destroyed when they are no longer required.
 
 ### Why did you choose 10.0.0.0/16?
 
-To provide sufficient IP address space for future expansion while maintaining a simple and scalable addressing scheme.
+It provides 65,536 private IP addresses, allowing the infrastructure to scale without redesigning the network.
+
+---
 
 ### Why are Kubernetes nodes deployed in private subnets?
 
 To prevent direct internet access and improve the security of production workloads.
 
-### Why use multiple Availability Zones?
+---
 
-To improve fault tolerance and ensure the platform remains available if one Availability Zone becomes unavailable.
+### Why is the Internet Gateway attached to the VPC instead of a subnet?
+
+Because it provides a single internet entry and exit point for the entire VPC. Individual subnets use Route Tables to decide whether their traffic should be forwarded to the Internet Gateway.
+
+---
+
+### Why is a NAT Gateway required?
+
+It allows private resources to initiate outbound internet connections while preventing inbound internet connections, improving the security of internal workloads.
+
+---
 
 ### Why use a remote Terraform backend?
 
-To provide secure, centralised, versioned and durable state management that can be shared by authorised engineers and CI/CD systems.
+To provide secure, encrypted, versioned and centralised state management that can be shared by authorised engineers and CI/CD systems.
