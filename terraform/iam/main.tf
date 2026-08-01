@@ -55,7 +55,8 @@ data "aws_iam_policy_document" "jenkins_ecr" {
       "ecr:InitiateLayerUpload",
       "ecr:ListImages",
       "ecr:PutImage",
-      "ecr:UploadLayerPart"
+      "ecr:UploadLayerPart",
+      "ecr:BatchGetImage",
     ]
 
     resources = [
