@@ -8,8 +8,10 @@ apt-get update -y
 apt-get install -y \
   ca-certificates \
   curl \
+  wget \
   unzip \
   gnupg \
+  apt-transport-https \
   fontconfig \
   openjdk-21-jre \
   docker.io
@@ -29,6 +31,17 @@ apt-get update -y
 apt-get install -y jenkins
 
 usermod -aG docker jenkins
+
+# Install Trivy from the official Aqua Security repository.
+wget -qO - https://get.trivy.dev/deb/public.key \
+  | gpg --dearmor \
+  | tee /usr/share/keyrings/trivy.gpg > /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://get.trivy.dev/deb generic main" \
+  > /etc/apt/sources.list.d/trivy.list
+
+apt-get update -y
+apt-get install -y trivy
 
 systemctl enable jenkins
 systemctl restart jenkins
