@@ -1,0 +1,94 @@
+apiVersion: kops.k8s.io/v1alpha2
+kind: Cluster
+metadata:
+  creationTimestamp: "2026-08-02T23:15:32Z"
+  name: k8s.ferdeve.fit
+spec:
+  api:
+    loadBalancer:
+      class: Network
+      type: Public
+  authorization:
+    rbac: {}
+  channel: stable
+  cloudProvider: aws
+  configBase: s3://enterprise-devops-platform-kops-state-740994137090/k8s.ferdeve.fit
+  dnsZone: ferdeve.fit
+  etcdClusters:
+  - cpuRequest: 200m
+    etcdMembers:
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3a
+      name: a
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3b
+      name: b
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3c
+      name: c
+    manager:
+      backupRetentionDays: 90
+    memoryRequest: 100Mi
+    name: main
+  - cpuRequest: 100m
+    etcdMembers:
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3a
+      name: a
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3b
+      name: b
+    - encryptedVolume: true
+      instanceGroup: control-plane-eu-west-3c
+      name: c
+    manager:
+      backupRetentionDays: 90
+    memoryRequest: 100Mi
+    name: events
+  iam:
+    allowContainerRegistry: true
+    legacy: false
+  kubelet:
+    anonymousAuth: false
+  kubernetesApiAccess:
+  - 0.0.0.0/0
+  - ::/0
+  kubernetesVersion: 1.35.7
+  masterPublicName: api.k8s.ferdeve.fit
+  networkCIDR: 172.20.0.0/16
+  networking:
+    calico: {}
+  nonMasqueradeCIDR: 100.64.0.0/10
+  sshAccess:
+  - 0.0.0.0/0
+  - ::/0
+  subnets:
+  - cidr: 172.20.64.0/18
+    name: eu-west-3a
+    type: Private
+    zone: eu-west-3a
+  - cidr: 172.20.128.0/18
+    name: eu-west-3b
+    type: Private
+    zone: eu-west-3b
+  - cidr: 172.20.192.0/18
+    name: eu-west-3c
+    type: Private
+    zone: eu-west-3c
+  - cidr: 172.20.0.0/21
+    name: utility-eu-west-3a
+    type: Utility
+    zone: eu-west-3a
+  - cidr: 172.20.8.0/21
+    name: utility-eu-west-3b
+    type: Utility
+    zone: eu-west-3b
+  - cidr: 172.20.16.0/21
+    name: utility-eu-west-3c
+    type: Utility
+    zone: eu-west-3c
+  topology:
+    bastion:
+      bastionPublicName: bastion.k8s.ferdeve.fit
+    dns:
+      type: Public

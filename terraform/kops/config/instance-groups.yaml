@@ -1,0 +1,125 @@
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:35Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: bastions
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.micro
+  maxSize: 1
+  minSize: 1
+  role: Bastion
+  subnets:
+  - eu-west-3a
+  - eu-west-3b
+  - eu-west-3c
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:33Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: control-plane-eu-west-3a
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 1
+  minSize: 1
+  role: Master
+  subnets:
+  - eu-west-3a
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:33Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: control-plane-eu-west-3b
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 1
+  minSize: 1
+  role: Master
+  subnets:
+  - eu-west-3b
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:34Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: control-plane-eu-west-3c
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 1
+  minSize: 1
+  role: Master
+  subnets:
+  - eu-west-3c
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:34Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: nodes-eu-west-3a
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 1
+  minSize: 1
+  role: Node
+  subnets:
+  - eu-west-3a
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:34Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: nodes-eu-west-3b
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 1
+  minSize: 1
+  role: Node
+  subnets:
+  - eu-west-3b
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: "2026-08-02T23:15:34Z"
+  labels:
+    kops.k8s.io/cluster: k8s.ferdeve.fit
+  name: nodes-eu-west-3c
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20260714
+  machineType: t3.medium
+  maxSize: 0
+  minSize: 0
+  role: Node
+  subnets:
+  - eu-west-3c
