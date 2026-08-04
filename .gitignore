@@ -30,3 +30,7 @@ Thumbs.db
 *.tfstate.*
 *.tfplan
 tfplan
+# Generated Helm manifests and operational logs
+platform/ingress-nginx/rendered-manifests.yaml
+platform/dns/logs/
+terraform/kops/logs/
