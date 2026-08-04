@@ -34,3 +34,6 @@ tfplan
 platform/ingress-nginx/rendered-manifests.yaml
 platform/dns/logs/
 terraform/kops/logs/
+
+# Platform operational logs
+platform/ingress-nginx/logs/
