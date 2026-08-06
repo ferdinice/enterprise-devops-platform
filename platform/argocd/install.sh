@@ -219,39 +219,13 @@ if kubectl get statefulset argocd-application-controller \
     --namespace "${NAMESPACE}" \
     --timeout=5m
 fi
-
-echo
-echo "Waiting for ArgoCD TLS certificate..."
-
-CERTIFICATE_READY=""
-
-for attempt in {1..60}; do
-  CERTIFICATE_READY="$(kubectl get certificate argocd-server \
-    --namespace "${NAMESPACE}" \
-    --output jsonpath='{.status.conditions[?(@.type=="Ready")].status}' \
-    2>/dev/null || true)"
-
-  if [[ "${CERTIFICATE_READY}" == "True" ]]; then
-    break
-  fi
-
-  echo "Attempt ${attempt}/60: certificate not ready yet."
-  sleep 10
-done
-
-if [[ "${CERTIFICATE_READY}" != "True" ]]; then
-  echo "WARNING: ArgoCD installed, but the TLS certificate is not Ready."
-  echo "Run ./verify.sh after DNS is created."
-else
-  echo "PASS: ArgoCD TLS certificate is Ready."
-fi
-
 echo
 echo "ArgoCD installation completed."
+echo "The TLS certificate will become Ready after DNS is created."
 echo
 echo "Next:"
-echo "  Create DNS:"
 echo "  ../../dns/create-alias-record.sh ${ARGOCD_HOSTNAME}"
-echo
-echo "  Verify:"
 echo "  ./verify.sh"
+echo
+echo "Installation log:"
+echo "${LOG_FILE}"
