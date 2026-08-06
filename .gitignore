@@ -38,3 +38,5 @@ terraform/kops/logs/
 # Platform operational logs
 platform/ingress-nginx/logs/
 platform/cert-manager/logs/
+platform/argocd/default-values.yaml
+platform/argocd/rendered-manifests.yaml

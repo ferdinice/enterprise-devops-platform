@@ -1,0 +1,49 @@
+global:
+  domain: argocd.ferdeve.fit
+
+controller:
+  replicas: 1
+
+repoServer:
+  replicas: 1
+
+applicationSet:
+  replicas: 1
+
+dex:
+  enabled: false
+
+configs:
+  params:
+    server.insecure: true
+
+server:
+  replicas: 1
+
+  service:
+    type: ClusterIP
+
+  certificate:
+    enabled: true
+    domain: argocd.ferdeve.fit
+    issuer:
+      group: cert-manager.io
+      kind: ClusterIssuer
+      name: letsencrypt-production
+    privateKey:
+      rotationPolicy: Always
+      encoding: PKCS8
+      algorithm: RSA
+      size: 2048
+
+  ingress:
+    enabled: true
+    controller: generic
+    ingressClassName: nginx
+    hostname: argocd.ferdeve.fit
+    path: /
+    pathType: Prefix
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    tls: true
