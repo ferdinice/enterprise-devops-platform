@@ -27,6 +27,10 @@ echo "Values file:   ${VALUES_FILE}"
 echo "Log file:      ${LOG_FILE}"
 echo "=========================================="
 
+# ---------------------------------------------------------
+# 1. Local dependency checks
+# ---------------------------------------------------------
+
 for command in helm kubectl; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "ERROR: ${command} is not installed or not in PATH."
@@ -39,6 +43,10 @@ if [[ ! -f "${VALUES_FILE}" ]]; then
   echo "${VALUES_FILE}"
   exit 1
 fi
+
+# ---------------------------------------------------------
+# 2. Kubernetes connectivity
+# ---------------------------------------------------------
 
 CURRENT_CONTEXT="$(kubectl config current-context 2>/dev/null || true)"
 
@@ -53,6 +61,10 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
 fi
 
 echo "Kubernetes context: ${CURRENT_CONTEXT}"
+
+# ---------------------------------------------------------
+# 3. Platform dependency checks
+# ---------------------------------------------------------
 
 echo
 echo "Checking platform dependencies..."
@@ -85,6 +97,10 @@ fi
 
 echo "PASS: ClusterIssuer '${CLUSTER_ISSUER_NAME}' is Ready."
 
+# ---------------------------------------------------------
+# 4. Helm repository
+# ---------------------------------------------------------
+
 if ! helm repo list 2>/dev/null |
   awk 'NR > 1 {print $1}' |
   grep -qx "${HELM_REPOSITORY_NAME}"; then
@@ -101,7 +117,12 @@ fi
 
 echo
 echo "Updating Helm repositories..."
+
 helm repo update
+
+# ---------------------------------------------------------
+# 5. Verify pinned chart version
+# ---------------------------------------------------------
 
 echo
 echo "Confirming pinned chart version exists..."
@@ -113,16 +134,27 @@ if ! helm search repo "${CHART_NAME}" \
 
   echo "ERROR: Chart version ${CHART_VERSION} was not found."
   echo
+  echo "Available chart versions:"
   helm search repo "${CHART_NAME}" --versions | head -10
   exit 1
 fi
 
 echo "PASS: Chart version ${CHART_VERSION} exists."
 
+# ---------------------------------------------------------
+# 6. Render and validate Helm manifests
+# ---------------------------------------------------------
+
 echo
 echo "Rendering chart before installation..."
 
 RENDERED_FILE="$(mktemp)"
+
+cleanup_rendered_file() {
+  rm -f "${RENDERED_FILE}"
+}
+
+trap cleanup_rendered_file EXIT
 
 helm template "${RELEASE_NAME}" \
   "${CHART_NAME}" \
@@ -135,37 +167,34 @@ helm template "${RELEASE_NAME}" \
 
 if [[ ! -s "${RENDERED_FILE}" ]]; then
   echo "ERROR: Helm produced an empty manifest."
-  rm -f "${RENDERED_FILE}"
   exit 1
 fi
 
 if ! grep -q "^kind: Ingress$" "${RENDERED_FILE}"; then
   echo "ERROR: Rendered output does not contain the ArgoCD Ingress."
-  rm -f "${RENDERED_FILE}"
   exit 1
 fi
 
 if ! grep -q "^kind: Certificate$" "${RENDERED_FILE}"; then
   echo "ERROR: Rendered output does not contain the ArgoCD Certificate."
-  rm -f "${RENDERED_FILE}"
   exit 1
 fi
 
 if ! grep -q "${ARGOCD_HOSTNAME}" "${RENDERED_FILE}"; then
   echo "ERROR: Rendered output does not contain ${ARGOCD_HOSTNAME}."
-  rm -f "${RENDERED_FILE}"
   exit 1
 fi
 
 if ! grep -q "${CLUSTER_ISSUER_NAME}" "${RENDERED_FILE}"; then
   echo "ERROR: Rendered output does not reference ${CLUSTER_ISSUER_NAME}."
-  rm -f "${RENDERED_FILE}"
   exit 1
 fi
 
-rm -f "${RENDERED_FILE}"
-
 echo "PASS: Helm rendering checks passed."
+
+# ---------------------------------------------------------
+# 7. Confirmation
+# ---------------------------------------------------------
 
 echo
 echo "WARNING"
@@ -180,8 +209,12 @@ read -r -p "Type INSTALL to continue: " CONFIRMATION
 
 if [[ "${CONFIRMATION}" != "INSTALL" ]]; then
   echo "Installation cancelled."
-  exit 0
+  exit 1
 fi
+
+# ---------------------------------------------------------
+# 8. Install / upgrade ArgoCD
+# ---------------------------------------------------------
 
 echo
 echo "Installing or upgrading ArgoCD..."
@@ -192,8 +225,12 @@ helm upgrade --install "${RELEASE_NAME}" \
   --create-namespace \
   --version "${CHART_VERSION}" \
   --values "${VALUES_FILE}" \
-  --wait \
+  --wait=legacy \
   --timeout 15m
+
+# ---------------------------------------------------------
+# 9. Verify workload rollouts
+# ---------------------------------------------------------
 
 echo
 echo "Waiting for ArgoCD deployments..."
@@ -219,6 +256,11 @@ if kubectl get statefulset argocd-application-controller \
     --namespace "${NAMESPACE}" \
     --timeout=5m
 fi
+
+# ---------------------------------------------------------
+# 10. Finish
+# ---------------------------------------------------------
+
 echo
 echo "ArgoCD installation completed."
 echo "The TLS certificate will become Ready after DNS is created."

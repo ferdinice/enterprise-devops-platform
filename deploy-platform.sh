@@ -281,89 +281,122 @@ fi
 
 cd "${PLATFORM_REPOSITORY}"
 
-section "11. Installing ArgoCD"
-
-run_script \
-  "${PLATFORM_REPOSITORY}/platform/argocd/install.sh"
-
-section "12. Creating ArgoCD DNS"
+section "11. Preparing ArgoCD DNS"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
   "${ARGOCD_HOSTNAME}"
 
 echo
-echo "Waiting for ArgoCD DNS and TLS certificate validation..."
+echo "Waiting for ${ARGOCD_HOSTNAME} to resolve inside Kubernetes..."
+
+ARGOCD_DNS_READY="false"
+
+for attempt in {1..30}; do
+
+  DNS_CHECK_POD="argocd-dns-check-${attempt}"
+
+  if kubectl run "${DNS_CHECK_POD}" \
+    --image=busybox:1.36 \
+    --restart=Never \
+    --rm \
+    --attach \
+    -- nslookup "${ARGOCD_HOSTNAME}" >/dev/null 2>&1; then
+
+    ARGOCD_DNS_READY="true"
+
+    echo "PASS: ${ARGOCD_HOSTNAME} resolves inside Kubernetes."
+    break
+  fi
+
+  echo "Attempt ${attempt}/30: DNS not resolvable inside Kubernetes yet."
+
+  # CoreDNS may temporarily retain a negative DNS response
+  # if the hostname was queried before the Route53 record existed.
+  if [[ "${attempt}" == "12" ]]; then
+
+    echo
+    echo "Refreshing CoreDNS after extended DNS propagation delay..."
+
+    kubectl rollout restart deployment coredns \
+      --namespace kube-system
+
+    kubectl rollout status deployment coredns \
+      --namespace kube-system \
+      --timeout=2m
+  fi
+
+  sleep 10
+done
+
+if [[ "${ARGOCD_DNS_READY}" != "true" ]]; then
+
+  echo "ERROR: ${ARGOCD_HOSTNAME} did not become resolvable inside Kubernetes."
+
+  echo
+  echo "CoreDNS diagnostics:"
+
+  kubectl get pods \
+    --namespace kube-system \
+    --selector k8s-app=kube-dns || true
+
+  exit 1
+fi
+
+
+section "12. Installing ArgoCD"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/argocd/install.sh"
+
+
+section "13. Waiting for ArgoCD TLS Certificate"
 
 ARGOCD_CERT_READY=""
 
 for attempt in {1..60}; do
+
   ARGOCD_CERT_READY="$(kubectl get certificate argocd-server \
     --namespace "${ARGOCD_NAMESPACE}" \
     --output jsonpath='{.status.conditions[?(@.type=="Ready")].status}' \
     2>/dev/null || true)"
 
   if [[ "${ARGOCD_CERT_READY}" == "True" ]]; then
+
     echo "PASS: ArgoCD certificate is Ready."
     break
   fi
 
-  echo "Attempt ${attempt}/60: ArgoCD certificate is not ready."
+  echo "Attempt ${attempt}/60: ArgoCD certificate not ready."
+
   sleep 10
 done
 
 if [[ "${ARGOCD_CERT_READY}" != "True" ]]; then
+
+  echo
   echo "ERROR: ArgoCD certificate did not become Ready."
 
+  echo
+  echo "Certificate:"
   kubectl describe certificate argocd-server \
     --namespace "${ARGOCD_NAMESPACE}" || true
 
-  kubectl get challenge,order \
+  echo
+  echo "ACME Order and Challenge:"
+  kubectl get order,challenge \
     --namespace "${ARGOCD_NAMESPACE}" || true
 
   exit 1
 fi
 
-section "13. Verifying ArgoCD"
+
+section "14. Verifying ArgoCD"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/argocd/verify.sh"
 
-section "14. Final Platform Verification"
-
-echo "Kubernetes nodes:"
-kubectl get nodes
-
-echo
-echo "Platform namespaces:"
-kubectl get namespaces
-
-echo
-echo "Helm releases:"
-helm list --all-namespaces
-
-echo
-echo "Certificates:"
-kubectl get certificates --all-namespaces
-
-echo
-echo "Ingress resources:"
-kubectl get ingress --all-namespaces
-
-echo
-echo "Public endpoint checks:"
-
-curl --fail --silent --show-error \
-  --head \
-  --max-time 30 \
-  "https://${PET_ADOPTION_HOSTNAME}"
-
-curl --fail --silent --show-error \
-  --head \
-  --max-time 30 \
-  "https://${ARGOCD_HOSTNAME}"
-
-section "Platform Deployment Completed"
+section "15. Final Platform Verification"
 
 echo "Pet Adoption:"
 echo "https://${PET_ADOPTION_HOSTNAME}"

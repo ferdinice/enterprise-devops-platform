@@ -100,7 +100,7 @@ read -r -p "Type INSTALL to continue: " CONFIRMATION
 
 if [[ "${CONFIRMATION}" != "INSTALL" ]]; then
   echo "Installation cancelled."
-  exit 0
+  exit 1
 fi
 
 echo

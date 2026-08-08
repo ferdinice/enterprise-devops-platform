@@ -66,21 +66,35 @@ fi
 echo
 echo "3. Controller Pods"
 
+echo
+echo "3. Controller Pods"
+
 kubectl get pods \
   --namespace "${NAMESPACE}" \
   --selector app.kubernetes.io/component=controller \
   --output wide || true
 
-NOT_READY_PODS="$(kubectl get pods \
+TOTAL_PODS="$(kubectl get pods \
   --namespace "${NAMESPACE}" \
   --selector app.kubernetes.io/component=controller \
   --no-headers 2>/dev/null |
-  awk '$2 != "1/1" || $3 != "Running" {count++} END {print count+0}')"
+  wc -l |
+  tr -d ' ')"
 
-if [[ "${NOT_READY_PODS}" == "0" ]]; then
-  pass "All controller Pods are Running and Ready."
+if [[ "${TOTAL_PODS}" == "0" ]]; then
+  fail "No NGINX controller Pods were found."
 else
-  fail "${NOT_READY_PODS} controller Pod or Pods are unhealthy."
+  NOT_READY_PODS="$(kubectl get pods \
+    --namespace "${NAMESPACE}" \
+    --selector app.kubernetes.io/component=controller \
+    --no-headers 2>/dev/null |
+    awk '$2 != "1/1" || $3 != "Running" {count++} END {print count+0}')"
+
+  if [[ "${NOT_READY_PODS}" == "0" ]]; then
+    pass "All ${TOTAL_PODS} controller Pods are Running and Ready."
+  else
+    fail "${NOT_READY_PODS} of ${TOTAL_PODS} controller Pods are unhealthy."
+  fi
 fi
 
 echo
