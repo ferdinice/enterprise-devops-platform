@@ -1,0 +1,81 @@
+grafana:
+  enabled: true
+
+  adminUser: admin
+
+  service:
+    type: ClusterIP
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    hosts:
+      - grafana.ferdeve.fit
+
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.ferdeve.fit
+
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+
+prometheus:
+  enabled: true
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    hosts:
+      - prometheus.ferdeve.fit
+
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.ferdeve.fit
+
+  prometheusSpec:
+    retention: 24h
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+
+alertmanager:
+  enabled: false
+
+
+kube-state-metrics:
+  enabled: true
+
+
+nodeExporter:
+  enabled: true
+
+
+prometheusOperator:
+  enabled: true
