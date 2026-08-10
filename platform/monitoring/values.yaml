@@ -54,6 +54,7 @@ prometheus:
           - prometheus.ferdeve.fit
 
   prometheusSpec:
+    externalUrl: https://prometheus.ferdeve.fit
     retention: 24h
 
     resources:
