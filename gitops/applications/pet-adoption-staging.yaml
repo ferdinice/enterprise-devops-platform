@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: pet-adoption-staging
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/ferdinice/enterprise-devops-platform.git
+    targetRevision: main
+    path: gitops/pet-adoption/overlays/staging
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pet-adoption-staging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

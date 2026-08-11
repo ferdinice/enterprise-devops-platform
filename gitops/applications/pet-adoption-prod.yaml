@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: pet-adoption-prod
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/ferdinice/enterprise-devops-platform.git
+    targetRevision: main
+    path: gitops/pet-adoption/overlays/prod
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pet-adoption-prod
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

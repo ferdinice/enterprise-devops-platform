@@ -40,3 +40,23 @@ platform/ingress-nginx/logs/
 platform/cert-manager/logs/
 platform/argocd/default-values.yaml
 platform/argocd/rendered-manifests.yaml
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+tfplan
+
+# Logs
+**/logs/
+*.log
+
+# Rendered/generated manifests
+platform/argocd/rendered-manifests.yaml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
