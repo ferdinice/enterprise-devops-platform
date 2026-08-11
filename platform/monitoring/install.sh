@@ -67,6 +67,33 @@ if ! helm repo list 2>/dev/null | awk 'NR > 1 {print $1}' | grep -qx "${HELM_REP
   echo
   echo "Adding Prometheus Community Helm repository..."
 
+echo
+echo "Preparing Slack webhook secret..."
+
+if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+  read -s -p "Enter Slack webhook URL: " SLACK_WEBHOOK_URL
+  echo
+fi
+
+if [[ -z "${SLACK_WEBHOOK_URL}" ]]; then
+  echo "ERROR: Slack webhook URL was not provided."
+  exit 1
+fi
+
+kubectl create namespace "${MONITORING_NAMESPACE}" \
+  --dry-run=client \
+  -o yaml \
+  | kubectl apply -f -
+
+kubectl create secret generic slack-webhook \
+  --namespace "${MONITORING_NAMESPACE}" \
+  --from-literal=url="${SLACK_WEBHOOK_URL}" \
+  --dry-run=client \
+  -o yaml \
+  | kubectl apply -f -
+
+echo "PASS: Slack webhook Secret is present."
+
   helm repo add \
     "${HELM_REPOSITORY_NAME}" \
     "${HELM_REPOSITORY_URL}"
@@ -116,6 +143,14 @@ if ! grep -q "prometheus.ferdeve.fit" "${RENDERED_FILE}"; then
 fi
 
 echo "PASS: Helm rendering checks passed."
+
+kubectl apply \
+  --filename "${SCRIPT_DIR}/rules/platform-alerts.yaml"
+
+if [[ ! -f "${SCRIPT_DIR}/rules/platform-alerts.yaml" ]]; then
+  echo "ERROR: PrometheusRule manifest not found."
+  exit 1
+fi
 
 echo
 echo "WARNING"

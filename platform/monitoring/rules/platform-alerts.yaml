@@ -1,0 +1,36 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+
+metadata:
+  name: platform-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+
+spec:
+  groups:
+    - name: platform.rules
+      rules:
+
+        - alert: DeploymentUnavailable
+          expr: kube_deployment_status_replicas_unavailable > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kubernetes deployment has unavailable replicas"
+            description: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has unavailable replicas for more than 5 minutes."
+
+        - alert: HighNodeCPU
+          expr: |
+            100 - (
+              avg by(instance) (
+                rate(node_cpu_seconds_total{mode="idle"}[5m])
+              ) * 100
+            ) > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage detected"
+            description: "Node {{ $labels.instance }} has been above 85% CPU utilization for more than 5 minutes."

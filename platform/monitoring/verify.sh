@@ -142,6 +142,38 @@ else
 fi
 
 echo
+echo "8. Alertmanager"
+
+if kubectl get statefulset \
+  --namespace "${MONITORING_NAMESPACE}" \
+  -l app.kubernetes.io/name=alertmanager \
+  >/dev/null 2>&1; then
+  pass "Alertmanager is deployed."
+else
+  fail "Alertmanager is missing."
+fi
+
+echo
+echo "9. Slack Secret"
+
+if kubectl get secret slack-webhook \
+  --namespace "${MONITORING_NAMESPACE}" >/dev/null 2>&1; then
+  pass "Slack webhook Secret exists."
+else
+  fail "Slack webhook Secret is missing."
+fi
+
+echo
+echo "10. Prometheus Alert Rules"
+
+if kubectl get prometheusrule platform-alerts \
+  --namespace "${MONITORING_NAMESPACE}" >/dev/null 2>&1; then
+  pass "PrometheusRule 'platform-alerts' exists."
+else
+  fail "PrometheusRule 'platform-alerts' is missing."
+fi
+
+echo
 echo "=========================================="
 
 if [[ "${FAILURES}" -eq 0 ]]; then

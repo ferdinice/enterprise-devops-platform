@@ -67,7 +67,13 @@ prometheus:
 
 
 alertmanager:
-  enabled: false
+  enabled: true
+
+  alertmanagerSpec:
+    replicas: 1
+
+    secrets:
+      - slack-webhook
 
 
 kube-state-metrics:
