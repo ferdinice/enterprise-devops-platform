@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+  name: pet-adoption
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - staging.petadoption.ferdeve.fit
+      secretName: petadoption-staging-tls
+
+  rules:
+    - host: staging.petadoption.ferdeve.fit
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pet-adoption
+                port:
+                  number: 80

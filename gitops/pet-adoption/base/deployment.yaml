@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pet-adoption
+  labels:
+    app: pet-adoption
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pet-adoption
+  template:
+    metadata:
+      labels:
+        app: pet-adoption
+    spec:
+      containers:
+        - name: pet-adoption
+          image: 740994137090.dkr.ecr.eu-west-3.amazonaws.com/enterprise-devops-platform/pet-adoption:build-8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
