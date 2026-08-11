@@ -83,29 +83,33 @@ else
   fail "Grafana Service was not found."
 fi
 
+
 echo
 echo "5. Ingress"
 
-GRAFANA_INGRESS_HOST="$(kubectl get ingress \
+GRAFANA_INGRESS_NAME="kube-prometheus-stack-grafana"
+PROMETHEUS_INGRESS_NAME="kube-prometheus-stack-prometheus"
+
+GRAFANA_INGRESS_HOST="$(kubectl get ingress "${GRAFANA_INGRESS_NAME}" \
   --namespace "${MONITORING_NAMESPACE}" \
-  -o jsonpath='{range .items[*]}{range .spec.rules[*]}{.host}{"\n"}{end}{end}' \
-  2>/dev/null | grep -Fx "${GRAFANA_HOSTNAME}" || true)"
+  -o jsonpath='{.spec.rules[0].host}' \
+  2>/dev/null || true)"
 
 if [[ "${GRAFANA_INGRESS_HOST}" == "${GRAFANA_HOSTNAME}" ]]; then
   pass "Grafana Ingress hostname is ${GRAFANA_HOSTNAME}."
 else
-  fail "Grafana Ingress hostname is missing."
+  fail "Grafana Ingress hostname is incorrect or missing."
 fi
 
-PROMETHEUS_INGRESS_HOST="$(kubectl get ingress \
+PROMETHEUS_INGRESS_HOST="$(kubectl get ingress "${PROMETHEUS_INGRESS_NAME}" \
   --namespace "${MONITORING_NAMESPACE}" \
-  -o jsonpath='{range .items[*]}{range .spec.rules[*]}{.host}{"\n"}{end}{end}' \
-  2>/dev/null | grep -Fx "${PROMETHEUS_HOSTNAME}" || true)"
+  -o jsonpath='{.spec.rules[0].host}' \
+  2>/dev/null || true)"
 
 if [[ "${PROMETHEUS_INGRESS_HOST}" == "${PROMETHEUS_HOSTNAME}" ]]; then
   pass "Prometheus Ingress hostname is ${PROMETHEUS_HOSTNAME}."
 else
-  fail "Prometheus Ingress hostname is missing."
+  fail "Prometheus Ingress hostname is incorrect or missing."
 fi
 
 echo
@@ -144,13 +148,33 @@ fi
 echo
 echo "8. Alertmanager"
 
-if kubectl get statefulset \
+ALERTMANAGER_NAME="kube-prometheus-stack-alertmanager"
+
+ALERTMANAGER_READY="$(kubectl get alertmanager "${ALERTMANAGER_NAME}" \
   --namespace "${MONITORING_NAMESPACE}" \
-  -l app.kubernetes.io/name=alertmanager \
-  >/dev/null 2>&1; then
-  pass "Alertmanager is deployed."
+  -o jsonpath='{.status.updatedReplicas}' \
+  2>/dev/null || true)"
+
+ALERTMANAGER_RECONCILED="$(kubectl get alertmanager "${ALERTMANAGER_NAME}" \
+  --namespace "${MONITORING_NAMESPACE}" \
+  -o jsonpath='{.status.conditions[?(@.type=="Reconciled")].status}' \
+  2>/dev/null || true)"
+
+ALERTMANAGER_AVAILABLE="$(kubectl get alertmanager "${ALERTMANAGER_NAME}" \
+  --namespace "${MONITORING_NAMESPACE}" \
+  -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' \
+  2>/dev/null || true)"
+
+if [[ "${ALERTMANAGER_READY}" == "1" \
+   && "${ALERTMANAGER_RECONCILED}" == "True" \
+   && "${ALERTMANAGER_AVAILABLE}" == "True" ]]; then
+
+  pass "Alertmanager is Ready, Reconciled, and Available."
 else
-  fail "Alertmanager is missing."
+  fail "Alertmanager is not healthy."
+  echo "   Ready replicas: ${ALERTMANAGER_READY:-0}"
+  echo "   Reconciled:      ${ALERTMANAGER_RECONCILED:-missing}"
+  echo "   Available:       ${ALERTMANAGER_AVAILABLE:-missing}"
 fi
 
 echo

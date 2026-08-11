@@ -82,6 +82,11 @@ alertmanager:
       group_interval: 5m
       repeat_interval: 4h
 
+      routes:
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: "null"
+
     receivers:
       - name: slack
         slack_configs:
@@ -96,6 +101,8 @@ alertmanager:
               Summary: {{ .Annotations.summary }}
               Description: {{ .Annotations.description }}
               {{ end }}
+
+      - name: "null"
 
   alertmanagerSpec:
     replicas: 1
