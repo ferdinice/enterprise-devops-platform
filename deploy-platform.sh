@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/platform/platform.env"
+source "${SCRIPT_DIR}/platform/monitoring/monitoring.env"
 
 export AWS_PROFILE
 export AWS_REGION
@@ -396,7 +397,80 @@ section "14. Verifying ArgoCD"
 run_script \
   "${PLATFORM_REPOSITORY}/platform/argocd/verify.sh"
 
-section "15. Final Platform Verification"
+section "15. Installing Monitoring Stack"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/monitoring/install.sh"
+
+
+section "16. Creating Monitoring DNS"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
+  "${GRAFANA_HOSTNAME}"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
+  "${PROMETHEUS_HOSTNAME}"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/dns/verify-dns.sh" \
+  "${GRAFANA_HOSTNAME}"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/dns/verify-dns.sh" \
+  "${PROMETHEUS_HOSTNAME}"
+
+
+section "17. Waiting for Monitoring TLS Certificates"
+
+for certificate_name in grafana-tls prometheus-tls; do
+
+  CERTIFICATE_READY=""
+
+  echo "Waiting for ${certificate_name}..."
+
+  for attempt in {1..60}; do
+
+    CERTIFICATE_READY="$(kubectl get certificate "${certificate_name}" \
+      --namespace "${MONITORING_NAMESPACE}" \
+      --output jsonpath='{.status.conditions[?(@.type=="Ready")].status}' \
+      2>/dev/null || true)"
+
+    if [[ "${CERTIFICATE_READY}" == "True" ]]; then
+      echo "PASS: ${certificate_name} is Ready."
+      break
+    fi
+
+    echo "Attempt ${attempt}/60: ${certificate_name} is not ready."
+    sleep 10
+  done
+
+  if [[ "${CERTIFICATE_READY}" != "True" ]]; then
+    echo
+    echo "ERROR: ${certificate_name} did not become Ready."
+
+    kubectl describe certificate "${certificate_name}" \
+      --namespace "${MONITORING_NAMESPACE}" || true
+
+    echo
+    echo "ACME diagnostics:"
+
+    kubectl get order,challenge \
+      --namespace "${MONITORING_NAMESPACE}" || true
+
+    exit 1
+  fi
+done
+
+
+section "18. Verifying Monitoring Stack"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/monitoring/verify.sh"
+
+
+section "19. Final Platform Verification"
 
 echo "Pet Adoption:"
 echo "https://${PET_ADOPTION_HOSTNAME}"
@@ -404,6 +478,14 @@ echo "https://${PET_ADOPTION_HOSTNAME}"
 echo
 echo "ArgoCD:"
 echo "https://${ARGOCD_HOSTNAME}"
+
+echo
+echo "Grafana:"
+echo "https://${GRAFANA_HOSTNAME}"
+
+echo
+echo "Prometheus:"
+echo "https://${PROMETHEUS_HOSTNAME}"
 
 echo
 echo "Deployment log:"
