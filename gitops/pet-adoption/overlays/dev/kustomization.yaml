@@ -11,4 +11,4 @@ patches:
 
 images:
   - name: 740994137090.dkr.ecr.eu-west-3.amazonaws.com/enterprise-devops-platform/pet-adoption
-    newTag: build-2-4dad0b1
+    newTag: build-1-0ae2d15
