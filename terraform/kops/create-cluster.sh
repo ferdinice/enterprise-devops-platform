@@ -93,7 +93,8 @@ kops create cluster \
   --topology private \
   --bastion \
   --dns-zone ferdeve.fit \
-  --ssh-public-key "${SSH_PUBLIC_KEY}"
+  --ssh-public-key "${SSH_PUBLIC_KEY}" \
+  --set spec.kubeProxy.metricsBindAddress=0.0.0.0
 
 echo
 echo "Cluster blueprint created successfully."

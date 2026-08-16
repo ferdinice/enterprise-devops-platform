@@ -1,233 +1,162 @@
-# Enterprise DevOps Platform
-
-## Project Overview
-
-The Enterprise DevOps Platform is a production-inspired DevOps project that demonstrates the design, automation, security, and deployment of a modern cloud-native application using AWS, Terraform, Jenkins, Docker, SonarQube, Trivy, Kubernetes (KOps), ArgoCD, and GitOps.
-
-The project is being built incrementally to simulate how enterprise engineering teams provision infrastructure, implement CI/CD pipelines, deploy applications to Kubernetes, and operate production workloads securely.
-
----
-
-# Objectives
-
-- Provision cloud infrastructure using Infrastructure as Code (Terraform)
-- Implement an enterprise Continuous Integration (CI) pipeline
-- Build immutable Docker images
-- Perform automated code quality analysis
-- Perform automated container vulnerability scanning
-- Store trusted images in Amazon Elastic Container Registry (ECR)
-- Deploy applications to Kubernetes using KOps
-- Implement GitOps with ArgoCD
-- Secure workloads with HTTPS and Ingress
-- Implement monitoring and observability
-
----
-
 # Current Project Status
 
 | Phase | Status |
-|---------|:------:|
+| --- | :---: |
 | Terraform Remote Backend | ✅ Complete |
-| Networking | ✅ Complete |
+| AWS Networking | ✅ Complete |
 | IAM | ✅ Complete |
 | Jenkins Infrastructure | ✅ Complete |
 | SonarQube Infrastructure | ✅ Complete |
 | Amazon ECR | ✅ Complete |
 | CI Pipeline | ✅ Complete |
+| Maven Build & Test | ✅ Complete |
+| SonarQube Analysis | ✅ Complete |
+| Quality Gate | ✅ Complete |
 | Docker Image Build | ✅ Complete |
 | Trivy Security Scan | ✅ Complete |
 | Push Image to Amazon ECR | ✅ Complete |
-| KOps Kubernetes Cluster | 🚧 In Progress |
-| Application Deployment | ⏳ Pending |
-| ArgoCD GitOps | ⏳ Pending |
-| Monitoring | ⏳ Pending |
-
----
+| KOps Kubernetes Cluster | ✅ Complete |
+| NGINX Ingress | ✅ Complete |
+| cert-manager / Let's Encrypt | ✅ Complete |
+| ArgoCD GitOps | ✅ Complete |
+| Development Environment | ✅ Complete |
+| Staging Environment | ✅ Complete |
+| Production Environment | ✅ Complete |
+| GitOps Promotion Workflow | ✅ Complete |
+| Prometheus | ✅ Complete |
+| Grafana | ✅ Complete |
+| Alertmanager | ✅ Complete |
+| Slack Alerting | ✅ Complete |
+| Platform Deployment Automation | ✅ Complete |
+| Platform Destruction Automation | ✅ Complete |
 
 # Architecture
 
-```
+```text
 Developer
-     │
-     ▼
- GitHub Repository
-     │
-     ▼
- Jenkins CI Pipeline
-     │
-     ├──────── Build & Test (Maven)
-     │
-     ├──────── SonarQube Analysis
-     │
-     ├──────── Quality Gate
-     │
-     ├──────── Docker Build
-     │
-     ├──────── Trivy Scan
-     │
-     ▼
- Amazon Elastic Container Registry (ECR)
-     │
-     ▼
- Kubernetes (KOps)
-     │
-     ▼
- ArgoCD GitOps
-     │
-     ▼
- Pet Adoption Application
-```
+    │
+    ▼
+GitHub Application Repository
+    │
+    ▼
+Jenkins CI Pipeline
+    │
+    ├── Maven Build & Test
+    ├── SonarQube Analysis
+    ├── Quality Gate
+    ├── Docker Build
+    └── Trivy Vulnerability Scan
+    │
+    ▼
+Amazon ECR
+    │
+    ▼
+GitOps Repository
+    │
+    ▼
+ArgoCD
+    │
+    ├── Development
+    ├── Staging
+    └── Production
+          │
+          ▼
+Kubernetes Cluster — KOps on AWS
+          │
+          ├── NGINX Ingress
+          ├── cert-manager
+          ├── Let's Encrypt TLS
+          └── Route 53 DNS
 
----
+Observability
+    │
+    ├── Prometheus
+    ├── Grafana
+    ├── Alertmanager
+    └── Slack Notifications
 
-# Technology Stack
+    
+### Step 3 — Update the repository structure
 
-## Cloud
+The existing structure is also stale. Replace it with:
 
-- AWS EC2
-- Amazon ECR
-- Amazon S3
-- Amazon Route 53
-- IAM
-
-## Infrastructure as Code
-
-- Terraform
-
-## CI/CD
-
-- Jenkins
-- SonarQube
-- Trivy
-
-## Containerization
-
-- Docker
-
-## Orchestration
-
-- Kubernetes
-- KOps
-- ArgoCD
-
-## Application
-
-- Java
-- Maven
-- Spring Boot
-
----
-
+```markdown
 # Repository Structure
 
-```
+```text
 enterprise-devops-platform/
-
-├── docs/
+├── deploy-platform.sh
+├── destroy-platform.sh
+├── README.md
 ├── diagrams/
-├── terraform/
-│   ├── backend/
-│   ├── network/
-│   ├── iam/
-│   ├── compute/
-│   ├── sonarqube/
-│   ├── ecr/
-│   └── kops/
-│
-├── kubernetes/
-├── monitoring/
+├── docs/
+│   ├── architecture/
+│   ├── cicd/
+│   ├── gitops/
+│   ├── infrastructure/
+│   ├── monitoring/
+│   ├── operations/
+│   └── platform/
+├── gitops/
+│   ├── applications/
+│   └── pet-adoption/
+│       ├── base/
+│       └── overlays/
+│           ├── dev/
+│           ├── staging/
+│           └── prod/
+├── platform/
+│   ├── argocd/
+│   ├── cert-manager/
+│   ├── dns/
+│   ├── ingress-nginx/
+│   ├── monitoring/
+│   └── logs/
 ├── scripts/
-└── README.md
-```
+└── terraform/
+    ├── backend/
+    ├── compute/
+    ├── ecr/
+    ├── iam/
+    ├── kops/
+    └── network/
 
----
+    
+### Step 4 — Replace `Future Enhancements`
 
-# Continuous Integration Features
+This section currently lists things we've **already built**, which weakens the portfolio badly.
 
-- Automated GitHub checkout
-- Maven build and testing
-- SonarQube static code analysis
-- Quality Gate enforcement
-- Docker image creation
-- Trivy vulnerability scanning
-- Immutable Docker image tagging
-- Amazon ECR publishing
-- Build artifact archiving
+Replace it with:
 
----
-
-# Security
-
-The project follows several security best practices:
-
-- Infrastructure provisioned using Terraform
-- IAM Roles instead of long-lived AWS credentials
-- Least Privilege access model
-- Immutable Docker image tags
-- SonarQube Quality Gates
-- Container vulnerability scanning using Trivy
-- Private Amazon ECR repository
-
----
-
-# Documentation
-
-Project documentation is organized under the `docs/` directory.
-
-Topics include:
-
-- Architecture
-- CI Pipeline
-- Infrastructure
-- Operations
-- Troubleshooting
-- Interview Notes
-
----
-
+```markdown
 # Future Enhancements
 
-- Kubernetes deployment using KOps
-- GitOps using ArgoCD
-- NGINX Ingress Controller
-- HTTPS using Let's Encrypt
-- Prometheus
-- Grafana
-- Loki
-- Kiali
-- Service Mesh
-- Multi-environment deployments
-- Disaster Recovery
+The core enterprise platform is operational. Future enhancements may include:
 
----
+- Centralized application logging with Loki
+- Distributed tracing
+- Kubernetes NetworkPolicies
+- External Secrets integration
+- Horizontal Pod Autoscaling
+- Argo Rollouts for canary or blue/green deployments
+- Backup and disaster-recovery automation
+- Policy enforcement with Kyverno or OPA Gatekeeper
+- Additional Grafana dashboards and SLO monitoring
+- Automated integration and performance testing
 
-# Skills Demonstrated
+# Platform Environments
 
-- Infrastructure as Code
-- AWS Cloud Engineering
-- CI/CD Pipeline Design
-- Containerization
-- DevSecOps
-- Kubernetes
-- GitOps
-- Cloud Security
-- Linux Administration
-- Infrastructure Automation
-- Troubleshooting
-- Production Deployment Strategies
+| Environment | Endpoint | Deployment Model |
+| --- | --- | --- |
+| Development | `https://dev.petadoption.ferdeve.fit` | ArgoCD GitOps |
+| Staging | `https://staging.petadoption.ferdeve.fit` | ArgoCD GitOps |
+| Production | `https://petadoption.ferdeve.fit` | Controlled GitOps promotion |
+| ArgoCD | `https://argocd.ferdeve.fit` | GitOps Control Plane |
+| Grafana | `https://grafana.ferdeve.fit` | Monitoring |
+| Prometheus | `https://prometheus.ferdeve.fit` | Metrics & Alerting |
 
----
+The application follows a controlled promotion lifecycle:
 
-# Author
+Development → Staging → Production
 
-**Ferdinand Anayo Ngaobiwu**
-
-Enterprise DevOps Platform Portfolio Project
-
-Built as part of my DevOps engineering journey to demonstrate practical cloud infrastructure automation, CI/CD implementation, Kubernetes deployment, GitOps, and production operations.
-
----
-
-## License
-
-This repository is intended for educational purposes and professional portfolio demonstration.
+Immutable ECR image tags are promoted between environments rather than rebuilding the application for each environment.

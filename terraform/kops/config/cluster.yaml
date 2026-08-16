@@ -50,6 +50,8 @@ spec:
     legacy: false
   kubelet:
     anonymousAuth: false
+  kubeProxy:
+    metricsBindAddress: 0.0.0.0
   kubernetesApiAccess:
   - 0.0.0.0/0
   - ::/0

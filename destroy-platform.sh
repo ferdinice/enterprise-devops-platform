@@ -61,7 +61,8 @@ echo "Log file:    ${LOG_FILE}"
 echo
 echo "DANGER"
 echo "This workflow removes:"
-echo "- Application DNS records"
+echo "- Dev, Staging and Production application DNS records"
+echo "- ArgoCD Applications and managed workloads"
 echo "- ArgoCD"
 echo "- cert-manager"
 echo "- NGINX Ingress Controller"
@@ -99,45 +100,71 @@ run_cleanup_script \
   "Uninstall Monitoring" \
   "${PLATFORM_REPOSITORY}/platform/monitoring/uninstall.sh"
 
-section "4. Deleting ArgoCD DNS"
+section "4. Deleting Pet Adoption Environment DNS"
+
+for hostname in \
+  "${DEV_HOSTNAME}" \
+  "${STAGING_HOSTNAME}" \
+  "${PROD_HOSTNAME}"
+do
+  run_cleanup_script \
+    "Delete Pet Adoption DNS ${hostname}" \
+    "${PLATFORM_REPOSITORY}/platform/dns/delete-alias-record.sh" \
+    "${hostname}"
+done
+
+
+section "5. Deleting ArgoCD Applications"
+
+for application in \
+  pet-adoption-dev \
+  pet-adoption-staging \
+  pet-adoption-prod
+do
+  echo
+  echo "Deleting ArgoCD Application ${application}..."
+
+  if ! kubectl delete application "${application}" \
+    --namespace argocd \
+    --ignore-not-found; then
+    record_failure "Failed to delete ArgoCD Application ${application}."
+  fi
+done
+
+
+section "6. Deleting ArgoCD DNS"
 
 run_cleanup_script \
   "Delete ArgoCD DNS" \
   "${PLATFORM_REPOSITORY}/platform/dns/delete-alias-record.sh" \
   "${ARGOCD_HOSTNAME}"
 
-section "5. Uninstalling ArgoCD"
+
+section "7. Uninstalling ArgoCD"
 
 run_cleanup_script \
   "Uninstall ArgoCD" \
   "${PLATFORM_REPOSITORY}/platform/argocd/uninstall.sh"
 
-section "6. Deleting Pet Adoption DNS"
-
-run_cleanup_script \
-  "Delete Pet Adoption DNS" \
-  "${PLATFORM_REPOSITORY}/platform/dns/delete-alias-record.sh" \
-  "${PET_ADOPTION_HOSTNAME}"
-
-section "7. Uninstalling cert-manager"
+section "8. Uninstalling cert-manager"
 
 run_cleanup_script \
   "Uninstall cert-manager" \
   "${PLATFORM_REPOSITORY}/platform/cert-manager/uninstall.sh"
 
-section "8. Uninstalling NGINX Ingress"
+section "9. Uninstalling NGINX Ingress"
 
 run_cleanup_script \
   "Uninstall NGINX Ingress" \
   "${PLATFORM_REPOSITORY}/platform/ingress-nginx/uninstall.sh"
 
-section "9. Deleting KOps Cluster"
+section "10. Deleting KOps Cluster"
 
 run_cleanup_script \
   "Delete KOps cluster" \
   "${PLATFORM_REPOSITORY}/terraform/kops/delete-cluster.sh"
 
-section "10. Verifying AWS Cleanup"
+section "11. Verifying AWS Cleanup"
 
 if [[ -x "${PLATFORM_REPOSITORY}/terraform/kops/verify-cleanup.sh" ]]; then
   if ! "${PLATFORM_REPOSITORY}/terraform/kops/verify-cleanup.sh"; then
@@ -147,7 +174,7 @@ else
   record_failure "verify-cleanup.sh was not found or executable."
 fi
 
-section "11. Destruction Summary"
+section "12. Destruction Summary"
 
 if [[ "${FAILURES}" -gt 0 ]]; then
   echo "Platform destruction completed with ${FAILURES} warning(s)."

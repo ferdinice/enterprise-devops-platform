@@ -982,3 +982,217 @@ The platform provides:
 * controlled teardown
 
 This platform layer sits between the underlying AWS/Kubernetes infrastructure and the Pet Adoption application delivery workflow.
+
+
+
+
+LOGINS
+
+# Platform Access and Credential Retrieval
+
+## ArgoCD
+
+URL:
+
+```text
+https://argocd.ferdeve.fit
+```
+
+Default administrator username:
+
+```text
+admin
+```
+
+Retrieve the initial administrator password:
+
+```bash
+kubectl get secret argocd-initial-admin-secret \
+  --namespace argocd \
+  --output jsonpath="{.data.password}" | base64 -d
+
+echo
+```
+
+The returned value is used with the `admin` username.
+
+The password must never be committed to Git or stored in project documentation.
+
+---
+
+## Grafana
+
+URL:
+
+```text
+https://grafana.ferdeve.fit
+```
+
+Administrator username:
+
+```text
+admin
+```
+
+Retrieve the administrator password:
+
+```bash
+kubectl get secret kube-prometheus-stack-grafana \
+  --namespace monitoring \
+  --output jsonpath="{.data.admin-password}" | base64 -d
+
+echo
+```
+
+Use the returned password with the `admin` username.
+
+The generated password must not be committed to Git.
+
+---
+
+## Prometheus
+
+URL:
+
+```text
+https://prometheus.ferdeve.fit
+```
+
+The current lab implementation does not configure application-level authentication for the Prometheus web interface.
+
+Therefore no Prometheus username or password is retrieved from Kubernetes.
+
+Prometheus is exposed through the NGINX Ingress Controller using HTTPS/TLS.
+
+Public Prometheus access without authentication is acceptable only for the current portfolio/lab validation and is recorded as a production-hardening item.
+
+A production implementation should restrict Prometheus access using mechanisms such as private networking, VPN/access proxy, authentication at the ingress layer, or another approved identity-aware access mechanism.
+
+---
+
+## Jenkins
+
+Jenkins is accessed using the administrator account created during initial configuration.
+
+For a newly provisioned Jenkins server, the initial administrator password is stored at:
+
+```text
+/var/lib/jenkins/secrets/initialAdminPassword
+```
+
+### Method 1 — AWS Systems Manager Session Manager
+
+```bash
+aws ssm start-session \
+  --target <JENKINS_INSTANCE_ID> \
+  --region eu-west-3 \
+  --profile personal-devops
+```
+
+Then:
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+### Method 2 — AWS Console
+
+Navigate to:
+
+```text
+EC2
+→ Instances
+→ Jenkins instance
+→ Connect
+→ Session Manager
+→ Connect
+```
+
+Then execute:
+
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
+
+### Method 3 — AWS Systems Manager Run Command
+
+Retrieve the instance dynamically from Terraform:
+
+```bash
+cd terraform/compute
+
+INSTANCE_ID=$(terraform output -raw jenkins_instance_id)
+```
+
+Then execute:
+
+```bash
+COMMAND_ID=$(aws ssm send-command \
+  --instance-ids "$INSTANCE_ID" \
+  --document-name "AWS-RunShellScript" \
+  --parameters 'commands=["sudo cat /var/lib/jenkins/secrets/initialAdminPassword"]' \
+  --region eu-west-3 \
+  --profile personal-devops \
+  --query "Command.CommandId" \
+  --output text)
+
+sleep 5
+
+AWS_PAGER="" aws ssm get-command-invocation \
+  --command-id "$COMMAND_ID" \
+  --instance-id "$INSTANCE_ID" \
+  --region eu-west-3 \
+  --profile personal-devops \
+  --query "[Status,StandardOutputContent,StandardErrorContent]" \
+  --output text
+```
+
+The initial password is intended for first-time Jenkins setup. After setup, the administrator credentials created during the Jenkins configuration process should be used.
+
+---
+
+## SonarQube
+
+SonarQube administrator credentials are established during initial SonarQube configuration.
+
+Jenkins does not store the SonarQube administrator password.
+
+Instead, Jenkins authenticates using a SonarQube authentication token.
+
+To generate a token:
+
+```text
+SonarQube
+→ User Profile
+→ My Account
+→ Security
+→ Generate Token
+```
+
+Example token name:
+
+```text
+jenkins-pet-adoption
+```
+
+Copy the token immediately after generation.
+
+Store it in Jenkins:
+
+```text
+Manage Jenkins
+→ Credentials
+→ System
+→ Global credentials
+→ Add Credentials
+```
+
+Configure:
+
+```text
+Kind: Secret text
+Secret: <SONARQUBE_TOKEN>
+ID: sonarqube-token
+```
+
+The actual token must never be committed to Git or written into project documentation.

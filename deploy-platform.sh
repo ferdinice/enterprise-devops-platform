@@ -55,7 +55,6 @@ section "Enterprise Platform Deployment"
 echo "AWS profile:            ${AWS_PROFILE}"
 echo "AWS region:             ${AWS_REGION}"
 echo "Platform repository:    ${PLATFORM_REPOSITORY}"
-echo "Application repository: ${APPLICATION_REPOSITORY}"
 echo "Log file:               ${LOG_FILE}"
 
 echo
@@ -85,10 +84,6 @@ if [[ ! -d "${PLATFORM_REPOSITORY}" ]]; then
   exit 1
 fi
 
-if [[ ! -d "${APPLICATION_REPOSITORY}" ]]; then
-  echo "ERROR: Application repository was not found."
-  exit 1
-fi
 
 ACCOUNT_ID="$(aws sts get-caller-identity \
   --query Account \
@@ -129,34 +124,7 @@ run_script \
 run_script \
   "${PLATFORM_REPOSITORY}/platform/ingress-nginx/verify.sh"
 
-section "6. Deploying Pet Adoption Application"
-
-cd "${APPLICATION_REPOSITORY}"
-
-kubectl apply \
-  --kustomize kubernetes/overlays/dev
-
-kubectl rollout status \
-  deployment/pet-adoption \
-  --namespace "${PET_ADOPTION_NAMESPACE}" \
-  --timeout=5m
-
-kubectl get deployment,pods,service,ingress \
-  --namespace "${PET_ADOPTION_NAMESPACE}"
-
-section "7. Creating Pet Adoption DNS"
-
-cd "${PLATFORM_REPOSITORY}"
-
-run_script \
-  "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
-  "${PET_ADOPTION_HOSTNAME}"
-
-run_script \
-  "${PLATFORM_REPOSITORY}/platform/dns/verify-dns.sh" \
-  "${PET_ADOPTION_HOSTNAME}"
-
-section "8. Installing cert-manager"
+section "6. Installing cert-manager"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/cert-manager/install.sh"
@@ -164,7 +132,8 @@ run_script \
 run_script \
   "${PLATFORM_REPOSITORY}/platform/cert-manager/verify.sh"
 
-section "9. Creating Production ClusterIssuer"
+
+section "7. Creating Production ClusterIssuer"
 
 ISSUER_FILE="${PLATFORM_REPOSITORY}/platform/cert-manager/issuers/letsencrypt-production.yaml"
 
@@ -179,7 +148,10 @@ kubectl apply --server-side \
 
 echo "Waiting for ClusterIssuer ${PRODUCTION_CLUSTER_ISSUER}..."
 
+ISSUER_READY=""
+
 for attempt in {1..30}; do
+
   ISSUER_READY="$(kubectl get clusterissuer \
     "${PRODUCTION_CLUSTER_ISSUER}" \
     --output jsonpath='{.status.conditions[?(@.type=="Ready")].status}' \
@@ -194,95 +166,40 @@ for attempt in {1..30}; do
   sleep 10
 done
 
-if [[ "${ISSUER_READY:-}" != "True" ]]; then
+if [[ "${ISSUER_READY}" != "True" ]]; then
   echo "ERROR: ClusterIssuer did not become Ready."
+
   kubectl describe clusterissuer \
     "${PRODUCTION_CLUSTER_ISSUER}" || true
+
   exit 1
 fi
 
-section "10. Creating Pet Adoption Certificate"
 
-PET_CERTIFICATE_FILE="${PLATFORM_REPOSITORY}/platform/cert-manager/issuers/petadoption-production-certificate.yaml"
+section "8. Creating Pet Adoption Environment DNS"
 
-if [[ ! -f "${PET_CERTIFICATE_FILE}" ]]; then
-  echo "ERROR: Pet Adoption Certificate manifest not found:"
-  echo "${PET_CERTIFICATE_FILE}"
-  exit 1
-fi
+for hostname in \
+  "${DEV_HOSTNAME}" \
+  "${STAGING_HOSTNAME}" \
+  "${PROD_HOSTNAME}"
+do
 
-kubectl apply \
-  --filename "${PET_CERTIFICATE_FILE}"
+  echo
+  echo "Creating DNS for ${hostname}..."
 
-echo "Waiting for Pet Adoption certificate..."
+  run_script \
+    "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
+    "${hostname}"
 
-for attempt in {1..60}; do
-  PET_CERTIFICATE_READY="$(kubectl get certificate \
-    petadoption-production \
-    --namespace "${PET_ADOPTION_NAMESPACE}" \
-    --output jsonpath='{.status.conditions[?(@.type=="Ready")].status}' \
-    2>/dev/null || true)"
+  run_script \
+    "${PLATFORM_REPOSITORY}/platform/dns/verify-dns.sh" \
+    "${hostname}"
 
-  if [[ "${PET_CERTIFICATE_READY}" == "True" ]]; then
-    echo "PASS: Pet Adoption certificate is Ready."
-    break
-  fi
-
-  echo "Attempt ${attempt}/60: certificate is not ready."
-  sleep 10
 done
 
-if [[ "${PET_CERTIFICATE_READY:-}" != "True" ]]; then
-  echo "ERROR: Pet Adoption certificate did not become Ready."
-  kubectl describe certificate petadoption-production \
-    --namespace "${PET_ADOPTION_NAMESPACE}" || true
-  exit 1
-fi
 
-echo
-echo "Reapplying Pet Adoption manifests after TLS issuance..."
 
-cd "${APPLICATION_REPOSITORY}"
-
-kubectl apply \
-  --kustomize kubernetes/overlays/dev
-
-kubectl rollout status \
-  deployment/pet-adoption \
-  --namespace "${PET_ADOPTION_NAMESPACE}" \
-  --timeout=5m
-
-echo
-echo "Testing Pet Adoption HTTPS endpoint..."
-
-PET_HTTP_STATUS=""
-
-for attempt in {1..30}; do
-  PET_HTTP_STATUS="$(curl \
-    --silent \
-    --output /dev/null \
-    --write-out '%{http_code}' \
-    --max-time 20 \
-    "https://${PET_ADOPTION_HOSTNAME}" \
-    2>/dev/null || true)"
-
-  if [[ "${PET_HTTP_STATUS}" =~ ^(200|301|302|307|308)$ ]]; then
-    echo "PASS: Pet Adoption HTTPS returned ${PET_HTTP_STATUS}."
-    break
-  fi
-
-  echo "Attempt ${attempt}/30: HTTPS returned '${PET_HTTP_STATUS:-no response}'."
-  sleep 10
-done
-
-if [[ ! "${PET_HTTP_STATUS}" =~ ^(200|301|302|307|308)$ ]]; then
-  echo "ERROR: Pet Adoption HTTPS endpoint is not healthy."
-  exit 1
-fi
-
-cd "${PLATFORM_REPOSITORY}"
-
-section "11. Preparing ArgoCD DNS"
+section "9. Preparing ArgoCD DNS"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
@@ -345,13 +262,13 @@ if [[ "${ARGOCD_DNS_READY}" != "true" ]]; then
 fi
 
 
-section "12. Installing ArgoCD"
+section "10. Installing ArgoCD"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/argocd/install.sh"
 
 
-section "13. Waiting for ArgoCD TLS Certificate"
+section "11. Waiting for ArgoCD TLS Certificate"
 
 ARGOCD_CERT_READY=""
 
@@ -391,19 +308,23 @@ if [[ "${ARGOCD_CERT_READY}" != "True" ]]; then
   exit 1
 fi
 
-
-section "14. Verifying ArgoCD"
+section "12. Verifying ArgoCD"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/argocd/verify.sh"
 
-section "15. Installing Monitoring Stack"
+section "13. Bootstrapping Pet Adoption GitOps Applications"
+
+run_script \
+  "${PLATFORM_REPOSITORY}/platform/argocd/applications/bootstrap-pet-adoption.sh"
+
+section "14. Installing Monitoring Stack"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/monitoring/install.sh"
 
 
-section "16. Creating Monitoring DNS"
+section "15. Creating Monitoring DNS"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/dns/create-alias-record.sh" \
@@ -422,7 +343,7 @@ run_script \
   "${PROMETHEUS_HOSTNAME}"
 
 
-section "17. Waiting for Monitoring TLS Certificates"
+section "16. Waiting for Monitoring TLS Certificates"
 
 for certificate_name in grafana-tls prometheus-tls; do
 
@@ -464,16 +385,25 @@ for certificate_name in grafana-tls prometheus-tls; do
 done
 
 
-section "18. Verifying Monitoring Stack"
+section "17. Verifying Monitoring Stack"
 
 run_script \
   "${PLATFORM_REPOSITORY}/platform/monitoring/verify.sh"
 
 
-section "19. Final Platform Verification"
+section "18. Final Platform Verification"
 
-echo "Pet Adoption:"
-echo "https://${PET_ADOPTION_HOSTNAME}"
+echo "Pet Adoption Development:"
+echo "https://${DEV_HOSTNAME}"
+
+echo
+echo "Pet Adoption Staging:"
+echo "https://${STAGING_HOSTNAME}"
+
+echo
+echo "Pet Adoption Production:"
+echo "https://${PROD_HOSTNAME}"
+echo "Production requires explicit ArgoCD synchronization after promotion."
 
 echo
 echo "ArgoCD:"
