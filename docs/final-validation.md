@@ -103,27 +103,29 @@ Local Terraform state files are excluded from Git.
 
 ## 5. Kubernetes
 
-The KOps cluster has previously been successfully created and validated.
+The KOps Kubernetes cluster was successfully rebuilt and validated during the final live infrastructure run.
 
-The final live test should reconfirm:
+The validation confirmed:
+
+- three healthy control-plane nodes
+- two active worker nodes
+- Kubernetes version `1.35.7`
+- multi-AZ deployment across `eu-west-3a`, `eu-west-3b`, and `eu-west-3c`
+- healthy Calico networking
+- healthy CoreDNS
+- healthy etcd
+- healthy AWS cloud-controller integration
+- healthy EBS CSI storage components
+
+The following commands were used:
 
 ```bash
 kubectl cluster-info
-kubectl get nodes
-```
-
-and:
-
-```bash
-./terraform/kops/validate-cluster.sh
-```
-
-Expected result:
-
-```text
-Cluster reachable
-Required nodes Ready
-KOps validation successful
+kubectl get nodes -o wide
+kubectl get pods -n kube-system
+kops validate cluster \
+  --name k8s.ferdeve.fit \
+  --state s3://enterprise-devops-platform-kops-state-740994137090
 ```
 
 ---

@@ -705,3 +705,40 @@ cert-manager provides TLS automation.
 Prometheus, Grafana, and Alertmanager provide operational visibility.
 
 Together these components form the runtime foundation of the Enterprise DevOps Platform.
+
+
+---
+
+## Live Deployment Evidence
+
+A complete live deployment of the KOps cluster was performed and validated on AWS.
+
+The deployment produced a highly available Kubernetes control plane across three Availability Zones, with two active worker nodes and a dedicated bastion InstanceGroup.
+
+### Kubernetes Nodes
+
+![Kubernetes nodes ready](../evidence/kops/01-kubernetes-nodes-ready.png)
+
+The cluster reached a healthy state with three control-plane nodes and two worker nodes reporting `Ready`.
+
+### KOps Instance Groups
+
+![KOps instance groups](../evidence/kops/02-kops-instance-groups.png)
+
+The InstanceGroup configuration confirms:
+
+- one bastion group
+- three control-plane groups across `eu-west-3a`, `eu-west-3b`, and `eu-west-3c`
+- active worker groups in `eu-west-3a` and `eu-west-3b`
+- a third worker group in `eu-west-3c` configured with zero desired capacity
+
+### Cluster Validation
+
+![KOps cluster validation](../evidence/kops/03-kops-cluster-validation.png)
+
+The cluster successfully passed:
+
+```bash
+kops validate cluster \
+  --name k8s.ferdeve.fit \
+  --state s3://enterprise-devops-platform-kops-state-740994137090
