@@ -2,3 +2,4 @@
 *.yaml text eol=lf
 *.yml text eol=lf
 *.tf text eol=lf
+*.env text eol=lf
